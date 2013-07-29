@@ -15,7 +15,7 @@ float Gaussian(float x, float deviation) {
 
 vec4 averageFromRadialKernel(sampler2D texture, vec2 coordinate, int radius, float texelSize, float blurScale, int blurAmount, float strength, float deviation) {
   vec4 color = vec4(0.0);
-  float offset, negOffset;
+  float offset;
 
   for(int i = 0; i < 1000; i++) {
     if(i >= radius) break;
@@ -23,8 +23,7 @@ vec4 averageFromRadialKernel(sampler2D texture, vec2 coordinate, int radius, flo
       if(j >= radius) break;
 
       offset = float(i + j) - (float(blurAmount) * 0.5);
-      negOffset = float(-(i + j)) - (float(blurAmount) * 0.5);
-      color += (texture2D(texture, coordinate + vec2(float(i) * texelSize * blurScale, float(j) * texelSize * blurScale)) * Gaussian(offset * strength, deviation)) + (texture2D(texture, coordinate + vec2(-float(i) * texelSize * blurScale, -float(j) * texelSize * blurScale)) * Gaussian(negOffset * strength, deviation));
+      color += (texture2D(texture, coordinate + vec2(float(i) * texelSize * blurScale, float(j) * texelSize * blurScale)) * Gaussian(offset * strength, deviation)) + (texture2D(texture, coordinate + vec2(-float(i) * texelSize * blurScale, -float(j) * texelSize * blurScale)) * Gaussian(offset * strength, deviation));
     }
   }
 
@@ -39,6 +38,6 @@ void main() {
   deviation *= deviation;
   float strength = 1.0 - blurStrength;
 
-  gl_FragColor = clamp(averageFromRadialKernel(texture, vTextureCoordinate, 3, texelSize, blurScale, blurAmount, strength, deviation), 0.0, 1.0);
+  gl_FragColor = clamp(averageFromRadialKernel(texture, vTextureCoordinate, 2, texelSize, blurScale, blurAmount, strength, deviation), 0.0, 1.0);
   gl_FragColor.w = 1.0;
 }
