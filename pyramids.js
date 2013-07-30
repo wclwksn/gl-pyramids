@@ -48,15 +48,12 @@ var pyramids = function() {
         blurMod;
 
     var pyramids,
-        squares,
         skyLines;
 
     var pyramidTexture,
-        squareTexture,
         skyTexture;
 
     var pyramidImage,
-        squareImage,
         skyImage;
 
     var sceneFrameBuffer,
@@ -79,8 +76,10 @@ var pyramids = function() {
         initShaders;
 
     var cycleBlur,
+        moveScene,
         renderSceneToBuffer,
         renderBlurredSceneToBuffer,
+        renderHighlightedSceneToBuffer,
         renderGlowingScene;
 
     var init,
@@ -119,14 +118,7 @@ var pyramids = function() {
         pyramids = [];
         for(i = 0; i < 4; i++) {
             for(j = 0; j < 10; j++) {
-                pyramids.push(new __components__.Static(new __components__.Vec3((8 * i) - 16.0, 0.0, (4 * j) - 38.0), __models__.Pyramid));
-            }
-        }
-
-        squares = [];
-        for(i = 0; i < 4; i++) {
-            for(j = 0; j < 10; j++) {
-                squares.push(new __components__.Static(new __components__.Vec3((8 * i) - 16.0, 0.0, (4 * j) - 38.0), __models__.Square));
+                pyramids.push(new __components__.Static(new __components__.Vec3((8 * i) - 16.0, 0.0, (4 * j) - 42.0), __models__.Pyramid));
             }
         }
 
@@ -148,17 +140,13 @@ var pyramids = function() {
 
     initImages = function(continuation) {
         pyramidImage = new Image();
-        squareImage = new Image();
         skyImage = new Image();
 
         pyramidImage.src = 'assets/textures/pyramid.png';
         pyramidImage.onload = function() {
-            squareImage.src = 'assets/textures/square-thin.png';
-            squareImage.onload = function() {
-                skyImage.src = 'assets/textures/sky.png';
-                skyImage.onload = function() {
-                    continuation();
-                };
+            skyImage.src = 'assets/textures/sky.png';
+            skyImage.onload = function() {
+                continuation();
             };
         };
     };
@@ -214,13 +202,25 @@ var pyramids = function() {
             blurMag = 0.0;
         }
 
-        if(blurMag >= 1.5) {
+        if(blurMag >= 3.0) {
             blurMod = -0.05;
         } else if(blurMag <= 0.0) {
             blurMod = 0.05;
         }
 
         blurMag += blurMod;
+    };
+
+    moveScene = function() {
+        var i;
+
+        for(i = 0; i < pyramids.length; i++) {
+            if(pyramids[i].position.x + 0.04 > 16.0) {
+                pyramids[i].position.x -= 31.95;
+            } else {
+                pyramids[i].position.x += 0.04;
+            }
+        }
     };
 
     renderSceneToBuffer = function() {
@@ -242,12 +242,6 @@ var pyramids = function() {
         sceneProg.loadTextureFromImage('texture', pyramidImage);
 
         for(i = 0; i < pyramids.length; i++) {
-            if(pyramids[i].position.x + 0.04 > 16.0) {
-                pyramids[i].position.x -= 31.95;
-            } else {
-                pyramids[i].position.x += 0.04;
-            }
-
             modelMatrix.makeIdentity();
             modelMatrix.translate(pyramids[i].position.x, pyramids[i].position.y - 0.1, pyramids[i].position.z);
             modelMatrix.scale(1.6, 1.0, 1.0);
@@ -255,30 +249,6 @@ var pyramids = function() {
             sceneProg.loadMatrix('modelMatrix', modelMatrix);
 
             gl.drawArrays(gl.TRIANGLES, 0, __models__.Pyramid.length / 3);
-        }
-
-        sceneProg.unloadTexture();
-
-        //---//
-
-        sceneProg.loadArray('vertexPosition', __models__.Square);
-        sceneProg.loadArray('textureCoordinate', __models__.SquareTexCoords);
-        sceneProg.loadTextureFromImage('texture', squareImage);
-
-        for(i = 0; i < squares.length; i++) {
-            if(squares[i].position.x + 0.04 > 16.0) {
-                squares[i].position.x -= 31.95;
-            } else {
-                squares[i].position.x += 0.04;
-            }
-
-            modelMatrix.makeIdentity();
-            modelMatrix.translate(squares[i].position.x, squares[i].position.y - 0.1, squares[i].position.z);
-            modelMatrix.scale(4.0, 1.0, 2.0);
-
-            sceneProg.loadMatrix('modelMatrix', modelMatrix);
-
-            gl.drawArrays(gl.TRIANGLES, 0, __models__.Square.length / 3);
         }
 
         sceneProg.unloadTexture();
@@ -318,10 +288,10 @@ var pyramids = function() {
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, sceneTexture);
         blurProg.loadInt('texture', 0);
-        blurProg.loadInt('blurAmount', 5);
-        blurProg.loadFloat('blurScale', blurMag);
-        blurProg.loadFloat('blurStrength', 0.5);
-        blurProg.loadFloat('texelSize', 0.001);
+        blurProg.loadFloat('texelSize', 1.0 / 512.0);
+        blurProg.loadInt('kernelRadius', 3);
+        blurProg.loadFloat('gaussianScale', 0.5);
+        blurProg.loadFloat('gaussianDeviation', 6.0);
         blurProg.loadArray('vertexPosition', __models__.RenderPane);
         blurProg.loadArray('textureCoordinate', __models__.RenderPaneTexCoords);
 
@@ -345,9 +315,8 @@ var pyramids = function() {
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, blurTexture);
         glowProg.loadInt('texture1', 1);
-
-        gl.uniform1f(gl.getUniformLocation(glowProg.program(), 'brightness'), (blurMag / 1.5) + 0.5);
-
+        glowProg.loadFloat('brightness', (blurMag / 1.5) + 0.5);
+        //glowProg.loadFloat('brightness', 1.0);
         glowProg.loadArray('vertexPosition', __models__.RenderPane);
         glowProg.loadArray('textureCoordinate', __models__.RenderPaneTexCoords);
 
@@ -364,6 +333,7 @@ var pyramids = function() {
             window.requestAnimFrame(mainLoop, canvas);
 
             cycleBlur();
+            moveScene();
             renderSceneToBuffer();
             renderBlurredSceneToBuffer();
             renderGlowingScene();
